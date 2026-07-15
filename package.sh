@@ -6,7 +6,7 @@ set -e
 APP_NAME="PortDeck"
 BUNDLE_ID="com.portdeck.app"
 BUILD_CONFIG="release"
-VERSION="1.0.0"
+VERSION="1.0.1"
 INSTALL=false
 CLEAN=false
 
