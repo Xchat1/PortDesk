@@ -1,9 +1,44 @@
+# macOS
 .DS_Store
-/.build
-/PortDeck.app
-/Packages
-xcuserdata/
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Xcode / SwiftPM
+.build/
+.swiftpm/
 DerivedData/
-.swiftpm/configuration/registries.json
-.swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
+Packages/
+xcuserdata/
+*.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/
+*.xcuserstate
+*.xcscmblueprint
+
+# Local credentials (never commit)
 .netrc
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+*.key
+id_rsa*
+id_ed25519*
+credentials*
+secrets*
+*.token
+
+# App build / packaging outputs (local only)
+PortDeck.app/
+*.app/
+PortDeck-macOS-*.zip
+*.dmg
+dist/
+release/
+
+# Local scratch / temp
+test.swift
+*.swp
+*~

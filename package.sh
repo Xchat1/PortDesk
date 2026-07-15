@@ -31,23 +31,23 @@ done
 
 if [ "$CLEAN" = true ]; then
     echo "=== Cleaning previous build artifacts ==="
-    rm -rf .build "$APP_NAME.app"
+    rm -rf .build "$APP_NAME.app" "$APP_NAME-macOS-"*.zip
 fi
 
 echo "=== Building $APP_NAME in $BUILD_CONFIG mode ==="
 swift build -c "$BUILD_CONFIG"
 
-BINARY_PATH=".build/apple/Products/Release/mmg"
+BINARY_PATH=".build/apple/Products/Release/PortDeck"
 if [ ! -f "$BINARY_PATH" ]; then
-    BINARY_PATH=".build/$BUILD_CONFIG/mmg"
+    BINARY_PATH=".build/$BUILD_CONFIG/PortDeck"
 fi
 
 if [ ! -f "$BINARY_PATH" ]; then
-    BINARY_PATH=$(find .build -name "mmg" -type f | head -n 1)
+    BINARY_PATH=$(find .build -name "PortDeck" -type f | head -n 1)
 fi
 
 if [ -z "$BINARY_PATH" ] || [ ! -f "$BINARY_PATH" ]; then
-    echo "Error: Compiled binary 'mmg' not found!"
+    echo "Error: Compiled binary 'PortDeck' not found!"
     exit 1
 fi
 
