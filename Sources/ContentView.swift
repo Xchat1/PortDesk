@@ -272,13 +272,15 @@ struct ContentView: View {
         refreshTimer?.invalidate()
         guard refreshInterval > 0 else { return }
 
-        refreshTimer = Timer.scheduledTimer(withTimeInterval: refreshInterval, repeats: true) { _ in
+        let timer = Timer.scheduledTimer(withTimeInterval: refreshInterval, repeats: true) { _ in
             DispatchQueue.main.async {
                 if !isScanning && !isStopping {
                     refreshForTab(selectedTab, showIndicator: false)
                 }
             }
         }
+        timer.tolerance = RefreshInterval.tolerance(for: refreshInterval)
+        refreshTimer = timer
     }
 
     private func formattedScanTime(_ date: Date) -> String {

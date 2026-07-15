@@ -31,19 +31,57 @@ struct SettingsView: View {
                     title: loc.currentLanguage == .chinese ? "刷新频率" : "Refresh Interval"
                 ) {
                     VStack(alignment: .leading, spacing: 12) {
-                        Text(loc.currentLanguage == .chinese ? "应用后台自动扫描活跃端口的间隔时间。" : "The interval at which the app automatically scans for active ports in the background.")
+                        Text(loc.currentLanguage == .chinese
+                             ? "自动扫描活跃端口的间隔。长时间间隔适合挂机省电；需要即时监控时请选择秒级。"
+                             : "How often PortDeck auto-scans active ports. Long intervals save power when idle; use seconds for live monitoring.")
                             .font(Theme.bodyFont())
                             .foregroundColor(.secondary)
 
-                        Picker("", selection: $refreshInterval) {
-                            Text(loc.currentLanguage == .chinese ? "手动" : "Manual").tag(0.0)
-                            Text("1 \(loc.currentLanguage == .chinese ? "秒" : "Second")").tag(1.0)
-                            Text("3 \(loc.currentLanguage == .chinese ? "秒" : "Seconds")").tag(3.0)
-                            Text("5 \(loc.currentLanguage == .chinese ? "秒" : "Seconds")").tag(5.0)
-                            Text("10 \(loc.currentLanguage == .chinese ? "秒" : "Seconds")").tag(10.0)
-                            Text("30 \(loc.currentLanguage == .chinese ? "秒" : "Seconds")").tag(30.0)
+                        HStack(spacing: 12) {
+                            Picker("", selection: $refreshInterval) {
+                                ForEach(RefreshInterval.options, id: \.self) { seconds in
+                                    Text(RefreshInterval.label(
+                                        seconds: seconds,
+                                        chinese: loc.currentLanguage == .chinese
+                                    ))
+                                    .tag(seconds)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                            .labelsHidden()
+                            .frame(maxWidth: 220, alignment: .leading)
+
+                            Text(RefreshInterval.label(
+                                seconds: refreshInterval,
+                                chinese: loc.currentLanguage == .chinese
+                            ))
+                            .font(Theme.captionFont())
+                            .foregroundColor(.secondary)
+
+                            Spacer(minLength: 0)
                         }
-                        .pickerStyle(.segmented)
+
+                        if refreshInterval <= 0 {
+                            Text(loc.currentLanguage == .chinese
+                                 ? "当前为仅手动刷新，可点击工具栏刷新按钮更新数据。"
+                                 : "Manual mode only — use the toolbar refresh button to update data.")
+                                .font(Theme.captionFont())
+                                .foregroundColor(.secondary)
+                        } else if refreshInterval >= 3600 {
+                            Text(loc.currentLanguage == .chinese
+                                 ? "应用处于睡眠/被挂起时，长间隔定时器会延后到唤醒后触发。"
+                                 : "If macOS suspends the app, long-interval timers fire after it wakes.")
+                                .font(Theme.captionFont())
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .onAppear {
+                        // Migrate unknown legacy values to the nearest supported option.
+                        if !RefreshInterval.options.contains(refreshInterval) {
+                            refreshInterval = RefreshInterval.options.min(by: {
+                                abs($0 - refreshInterval) < abs($1 - refreshInterval)
+                            }) ?? 5.0
+                        }
                     }
                 }
 
