@@ -49,11 +49,11 @@ struct PortsView: View {
             case .all:
                 matchesFilter = true
             case .exposed:
-                matchesFilter = !item.isLocalOnly && !item.isSystemProcess
+                matchesFilter = !item.isLocalOnly && !item.isProtected
             case .local:
-                matchesFilter = item.isLocalOnly && !item.isSystemProcess
+                matchesFilter = item.isLocalOnly && !item.isProtected
             case .system:
-                matchesFilter = item.isSystemProcess || item.isAppleSigned
+                matchesFilter = item.isProtected
             }
 
             return matchesSearch && matchesFilter

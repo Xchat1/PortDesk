@@ -14,6 +14,18 @@ enum AppInfo {
     static var version: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
     }
+
+    static var build: String {
+        Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
+    }
+
+    /// Display string combining short version and build number, e.g. "1.0.1 (1.0.1)".
+    static var versionDisplay: String {
+        "\(version) (\(build))"
+    }
+
+    /// Project homepage / repository URL shown in the About section (set per build).
+    static let projectURL: String = "https://github.com/Xchat1/PortDesk"
 }
 
 /// Supported auto-refresh intervals (seconds). `0` means manual only.

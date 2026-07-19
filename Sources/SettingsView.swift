@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @ObservedObject private var loc = Localization.shared
+    @ObservedObject private var appearance = AppearanceManager.shared
     @AppStorage("refresh_interval") private var refreshInterval: Double = 5.0
 
     var body: some View {
@@ -22,6 +23,31 @@ struct SettingsView: View {
                                     loc.currentLanguage = lang
                                 }
                             )
+                        }
+                    }
+                }
+
+                SettingsSection(
+                    icon: "paintbrush",
+                    title: loc.currentLanguage == .chinese ? "外观" : "Appearance"
+                ) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text(loc.currentLanguage == .chinese
+                             ? "选择 PortDeck 的明暗主题。跟随系统会随 macOS 自动切换。"
+                             : "Choose PortDeck's light or dark theme. System follows the macOS setting automatically.")
+                            .font(Theme.bodyFont())
+                            .foregroundColor(.secondary)
+
+                        VStack(spacing: 8) {
+                            ForEach(AppearanceMode.allCases) { mode in
+                                AppearanceOptionRow(
+                                    mode: mode,
+                                    isSelected: appearance.mode == mode,
+                                    onSelect: {
+                                        appearance.mode = mode
+                                    }
+                                )
+                            }
                         }
                     }
                 }
@@ -96,8 +122,15 @@ struct SettingsView: View {
                         )
                         AboutRow(
                             label: loc.currentLanguage == .chinese ? "版本" : "Version",
-                            value: AppInfo.version
+                            value: AppInfo.versionDisplay
                         )
+
+                        if !AppInfo.projectURL.isEmpty {
+                            ProjectLinkRow(
+                                label: loc.currentLanguage == .chinese ? "项目地址" : "Project",
+                                urlString: AppInfo.projectURL
+                            )
+                        }
                         AboutRow(
                             label: loc.currentLanguage == .chinese ? "架构" : "Architecture",
                             value: "Apple Silicon (arm64)"
@@ -223,6 +256,86 @@ struct LanguageOptionRow: View {
     }
 }
 
+struct AppearanceOptionRow: View {
+    let mode: AppearanceMode
+    let isSelected: Bool
+    let onSelect: () -> Void
+
+    @ObservedObject private var loc = Localization.shared
+
+    var body: some View {
+        Button(action: onSelect) {
+            HStack(spacing: 12) {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(isSelected ? Theme.primary : .secondary)
+                    .frame(width: 22)
+
+                Image(systemName: icon)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(isSelected ? Theme.primary : .secondary)
+                    .frame(width: 22)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.system(size: 14, weight: isSelected ? .semibold : .regular))
+                        .foregroundColor(.primary)
+
+                    Text(subtitle)
+                        .font(Theme.captionFont())
+                        .foregroundColor(.secondary)
+                }
+
+                Spacer()
+
+                if isSelected {
+                    BadgeView(
+                        text: loc.currentLanguage == .chinese ? "当前主题" : "Current",
+                        color: Theme.primary,
+                        icon: "checkmark"
+                    )
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(isSelected ? Theme.primary.opacity(0.08) : Theme.surfaceVariant.opacity(0.25))
+            .clipShape(RoundedRectangle(cornerRadius: Theme.controlRadius, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.controlRadius, style: .continuous)
+                    .stroke(isSelected ? Theme.primary.opacity(0.35) : Theme.border.opacity(0.35), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var title: String {
+        switch mode {
+        case .system: return loc.currentLanguage == .chinese ? "跟随系统" : "System"
+        case .light:  return loc.currentLanguage == .chinese ? "浅色" : "Light"
+        case .dark:   return loc.currentLanguage == .chinese ? "深色" : "Dark"
+        }
+    }
+
+    private var subtitle: String {
+        switch (loc.currentLanguage, mode) {
+        case (.chinese, .system): return "随 macOS 在白天/黑夜间自动切换"
+        case (.chinese, .light):  return "始终使用浅色主题"
+        case (.chinese, .dark):   return "始终使用深色主题"
+        case (.english, .system): return "Auto-switch with macOS light/dark"
+        case (.english, .light):  return "Always use the light theme"
+        case (.english, .dark):   return "Always use the dark theme"
+        }
+    }
+
+    private var icon: String {
+        switch mode {
+        case .system: return "circle.lefthalf.filled"
+        case .light:  return "sun.max"
+        case .dark:   return "moon.fill"
+        }
+    }
+}
+
 struct AboutRow: View {
     let label: String
     let value: String
@@ -240,5 +353,45 @@ struct AboutRow: View {
 
             Spacer()
         }
+    }
+}
+
+/// A clickable row that opens an external project URL in the default browser.
+struct ProjectLinkRow: View {
+    let label: String
+    let urlString: String
+
+    @ObservedObject private var loc = Localization.shared
+
+    var body: some View {
+        Button(action: openURL) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(label)
+                    .font(Theme.captionFont())
+                    .foregroundColor(.secondary)
+                    .frame(width: 120, alignment: .leading)
+
+                HStack(spacing: 4) {
+                    Text(urlString)
+                        .font(Theme.bodyFont())
+                        .foregroundColor(Theme.primary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+
+                    Image(systemName: "arrow.up.right.square")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(Theme.primary)
+                }
+
+                Spacer()
+            }
+        }
+        .buttonStyle(.plain)
+        .help(loc.currentLanguage == .chinese ? "在浏览器中打开项目地址" : "Open project page in browser")
+    }
+
+    private func openURL() {
+        guard let url = URL(string: urlString) else { return }
+        NSWorkspace.shared.open(url)
     }
 }

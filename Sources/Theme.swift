@@ -1,19 +1,68 @@
 import SwiftUI
 
+/// A complete set of theme colors for a single appearance (light or dark).
+struct ThemePalette {
+    let primary: Color
+    let primaryHover: Color
+    let background: Color
+    let surface: Color
+    let surfaceVariant: Color
+    let border: Color
+    let safeColor: Color
+    let warningColor: Color
+    let dangerColor: Color
+    let neutralColor: Color
+
+    var cardBackground: Color { surface }
+
+    /// Dark palette — matches the PortDeck design system.
+    static let dark = ThemePalette(
+        primary: Color(red: 10.0 / 255.0, green: 132.0 / 255.0, blue: 1.0),
+        primaryHover: Color(red: 0.0, green: 113.0 / 255.0, blue: 227.0 / 255.0),
+        background: Color(red: 0.0, green: 0.0, blue: 0.0),
+        surface: Color(red: 28.0 / 255.0, green: 28.0 / 255.0, blue: 30.0 / 255.0),
+        surfaceVariant: Color(red: 44.0 / 255.0, green: 44.0 / 255.0, blue: 46.0 / 255.0),
+        border: Color(red: 56.0 / 255.0, green: 56.0 / 255.0, blue: 58.0 / 255.0),
+        safeColor: Color(red: 48.0 / 255.0, green: 209.0 / 255.0, blue: 88.0 / 255.0),
+        warningColor: Color(red: 1.0, green: 159.0 / 255.0, blue: 10.0 / 255.0),
+        dangerColor: Color(red: 1.0, green: 69.0 / 255.0, blue: 58.0 / 255.0),
+        neutralColor: Color.secondary
+    )
+
+    /// Light palette — same semantic roles, tuned for contrast on white.
+    static let light = ThemePalette(
+        primary: Color(red: 10.0 / 255.0, green: 132.0 / 255.0, blue: 1.0),
+        primaryHover: Color(red: 0.0, green: 113.0 / 255.0, blue: 227.0 / 255.0),
+        background: Color(red: 245.0 / 255.0, green: 245.0 / 255.0, blue: 247.0 / 255.0),
+        surface: Color(red: 255.0 / 255.0, green: 255.0 / 255.0, blue: 255.0 / 255.0),
+        surfaceVariant: Color(red: 232.0 / 255.0, green: 232.0 / 255.0, blue: 237.0 / 255.0),
+        border: Color(red: 210.0 / 255.0, green: 210.0 / 255.0, blue: 215.0 / 255.0),
+        safeColor: Color(red: 30.0 / 255.0, green: 122.0 / 255.0, blue: 51.0 / 255.0),
+        warningColor: Color(red: 199.0 / 255.0, green: 84.0 / 255.0, blue: 0.0 / 255.0),
+        dangerColor: Color(red: 196.0 / 255.0, green: 40.0 / 255.0, blue: 27.0 / 255.0),
+        neutralColor: Color.secondary
+    )
+}
+
 struct Theme {
-    static let primary = Color(red: 10.0 / 255.0, green: 132.0 / 255.0, blue: 1.0)
-    static let primaryHover = Color(red: 0.0, green: 113.0 / 255.0, blue: 227.0 / 255.0)
-    static let background = Color(red: 0.0, green: 0.0, blue: 0.0)
-    static let surface = Color(red: 28.0 / 255.0, green: 28.0 / 255.0, blue: 30.0 / 255.0)
-    static let surfaceVariant = Color(red: 44.0 / 255.0, green: 44.0 / 255.0, blue: 46.0 / 255.0)
-    static let border = Color(red: 56.0 / 255.0, green: 56.0 / 255.0, blue: 58.0 / 255.0)
-    static let cardBackground = surface
+    /// The active palette, chosen from the resolved appearance.
+    private static var palette: ThemePalette {
+        AppearanceManager.shared.isDark ? .dark : .light
+    }
+
+    static var primary: Color { palette.primary }
+    static var primaryHover: Color { palette.primaryHover }
+    static var background: Color { palette.background }
+    static var surface: Color { palette.surface }
+    static var surfaceVariant: Color { palette.surfaceVariant }
+    static var border: Color { palette.border }
+    static var cardBackground: Color { palette.cardBackground }
 
     // Status colors
-    static let safeColor = Color(red: 48.0 / 255.0, green: 209.0 / 255.0, blue: 88.0 / 255.0)
-    static let warningColor = Color(red: 1.0, green: 159.0 / 255.0, blue: 10.0 / 255.0)
-    static let dangerColor = Color(red: 1.0, green: 69.0 / 255.0, blue: 58.0 / 255.0)
-    static let neutralColor = Color.secondary
+    static var safeColor: Color { palette.safeColor }
+    static var warningColor: Color { palette.warningColor }
+    static var dangerColor: Color { palette.dangerColor }
+    static var neutralColor: Color { palette.neutralColor }
 
     static let cardRadius: CGFloat = 14
     static let controlRadius: CGFloat = 8

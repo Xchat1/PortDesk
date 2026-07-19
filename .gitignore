@@ -42,3 +42,6 @@ release/
 test.swift
 *.swp
 *~
+
+# Local tool scratch
+.grok/

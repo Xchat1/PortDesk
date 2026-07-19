@@ -12,5 +12,9 @@ let package = Package(
         .executableTarget(
             name: "PortDeck"
         ),
+        .testTarget(
+            name: "PortDeckTests",
+            dependencies: ["PortDeck"]
+        ),
     ]
 )

@@ -19,13 +19,18 @@ struct PortServiceItem: Identifiable, Hashable {
     var framework: String
     var isAppleSigned: Bool
     var isSystemProcess: Bool
+    var processStartTime: UInt64?
+
+    var isProtected: Bool {
+        isSystemProcess || isAppleSigned
+    }
     
     // UI computed fields
     var riskLevel: String {
         if !isLocalOnly {
             return "warning"
         }
-        if isSystemProcess || isAppleSigned {
+        if isProtected {
             return "safe"
         }
         return "neutral"
@@ -86,6 +91,30 @@ final class PortService: @unchecked Sendable {
             return String(cString: buffer)
         }
         return nil
+    }
+
+    private func getProcessStartTime(for pid: Int32) -> UInt64? {
+        var info = proc_bsdinfo()
+        let expectedSize = Int32(MemoryLayout<proc_bsdinfo>.size)
+        let result = proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &info, expectedSize)
+        guard result == expectedSize else { return nil }
+        return info.pbi_start_tvsec * 1_000_000 + info.pbi_start_tvusec
+    }
+
+    private func processIdentityMatches(_ item: PortServiceItem) -> Bool {
+        if let expectedStartTime = item.processStartTime {
+            guard getProcessStartTime(for: item.pid) == expectedStartTime else {
+                return false
+            }
+            if let expectedPath = item.path,
+               getExecutablePath(for: item.pid) != expectedPath {
+                return false
+            }
+            return getProcessStartTime(for: item.pid) == expectedStartTime
+        }
+
+        guard let expectedPath = item.path else { return false }
+        return getExecutablePath(for: item.pid) == expectedPath
     }
     
     // Execute a shell command and return its output
@@ -200,7 +229,8 @@ final class PortService: @unchecked Sendable {
                         parentProcessName: nil,
                         framework: "Unknown",
                         isAppleSigned: false,
-                        isSystemProcess: false
+                        isSystemProcess: false,
+                        processStartTime: nil
                     )
                     
                     if pidItemsMap[pid] == nil {
@@ -305,6 +335,7 @@ final class PortService: @unchecked Sendable {
                 let commandLine = commandLineMap[pid]
                 let cwd = cwdMap[pid]
                 let path = self.getExecutablePath(for: pid)
+                let processStartTime = self.getProcessStartTime(for: pid)
                 let parentName = parentNamesMap[ppid]
                 
                 var isApple = false
@@ -346,6 +377,7 @@ final class PortService: @unchecked Sendable {
                 baseItem.parentProcessName = parentName
                 baseItem.isAppleSigned = isApple
                 baseItem.isSystemProcess = isSystem
+                baseItem.processStartTime = processStartTime
                 baseItem.processName = realProcessName
                 
                 // Framework detection
@@ -507,35 +539,32 @@ final class PortService: @unchecked Sendable {
     }
     
     // Shut down service gracefully
-    func stopService(pid: Int32, force: Bool, completion: @escaping (Bool) -> Void) {
+    func stopService(item: PortServiceItem, force: Bool, completion: @escaping (Bool) -> Void) {
+        guard !item.isProtected else {
+            DispatchQueue.main.async { completion(false) }
+            return
+        }
+
         DispatchQueue.global(qos: .userInitiated).async {
-            let signal = force ? "-9" : "-15" // SIGKILL / SIGTERM
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/bin/kill")
-            process.arguments = [signal, String(pid)]
-            
-            do {
-                try process.run()
-                process.waitUntilExit()
-                let success = process.terminationStatus == 0
-                
-                // If it was SIGTERM, check if the process actually exited after 3 seconds
-                if !force && success {
-                    DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + 3.0) {
-                        // Check if it still exists using POSIX kill
-                        let exists = kill(pid, 0) == 0
-                        DispatchQueue.main.async {
-                            completion(!exists) // success if it no longer exists
-                        }
-                    }
-                } else {
+            guard self.processIdentityMatches(item) else {
+                DispatchQueue.main.async { completion(false) }
+                return
+            }
+
+            let signal = force ? SIGKILL : SIGTERM
+            let success = Darwin.kill(item.pid, signal) == 0
+
+            // For SIGTERM, only report success once the original process identity is gone.
+            if !force && success {
+                DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + 3.0) {
+                    let originalProcessStillExists = self.processIdentityMatches(item)
                     DispatchQueue.main.async {
-                        completion(success)
+                        completion(!originalProcessStillExists)
                     }
                 }
-            } catch {
+            } else {
                 DispatchQueue.main.async {
-                    completion(false)
+                    completion(success)
                 }
             }
         }

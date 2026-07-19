@@ -185,7 +185,7 @@ struct ProcessDetailDrawer: View {
 
     private var footer: some View {
         VStack(spacing: 12) {
-            if item.isSystemProcess {
+            if item.isProtected {
                 HStack(spacing: 8) {
                     Image(systemName: "shield.fill")
                         .foregroundColor(Theme.warningColor)
@@ -254,11 +254,10 @@ struct ProcessDetailDrawer: View {
     }
 
     private func openInTerminal(at path: String) {
-        let escaped = path.replacingOccurrences(of: "'", with: "'\\''")
-        let script = "tell application \"Terminal\" to do script \"cd '\(escaped)'\""
-        guard let appleScript = NSAppleScript(source: script) else { return }
-        var error: NSDictionary?
-        appleScript.executeAndReturnError(&error)
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+        process.arguments = ["-a", "Terminal", path]
+        try? process.run()
     }
 
     private func getRiskDescription(_ item: PortServiceItem) -> String {

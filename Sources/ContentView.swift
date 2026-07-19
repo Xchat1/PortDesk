@@ -5,7 +5,6 @@ struct ContentView: View {
     @State private var selectedTab: NavigationTab = .dashboard
     @State private var items: [PortServiceItem] = []
     @State private var trashInfo = TrashInfo(sizeBytes: 0, fileCount: 0)
-    @State private var actionLogs: [ActionLogItem] = []
     @State private var isScanning = false
     
     // Details drawer states
@@ -25,6 +24,7 @@ struct ContentView: View {
     @State private var refreshTimer: Timer? = nil
     
     @ObservedObject private var loc = Localization.shared
+    @ObservedObject private var appearance = AppearanceManager.shared
     
     enum NavigationTab {
         case dashboard
@@ -34,7 +34,7 @@ struct ContentView: View {
     }
     
     var exposedCount: Int {
-        items.filter { !$0.isLocalOnly && !$0.isSystemProcess }.count
+        items.filter { !$0.isLocalOnly && !$0.isProtected }.count
     }
     
     var body: some View {
@@ -74,6 +74,26 @@ struct ContentView: View {
                         }
                         
                         Spacer()
+                        
+                        // Appearance quick toggle (manual switching)
+                        Menu {
+                            ForEach(AppearanceMode.allCases) { mode in
+                                Button {
+                                    appearance.mode = mode
+                                } label: {
+                                    Label(appearanceLabel(for: mode),
+                                          systemImage: mode == appearance.mode ? "checkmark" : "")
+                                }
+                            }
+                        } label: {
+                            Image(systemName: appearanceIcon)
+                                .font(.system(size: 13, weight: .semibold))
+                                .frame(width: 30, height: 30)
+                                .background(Theme.surfaceVariant.opacity(0.7))
+                                .clipShape(RoundedRectangle(cornerRadius: Theme.controlRadius, style: .continuous))
+                        }
+                        .menuStyle(.borderlessButton)
+                        .help(loc.currentLanguage == .chinese ? "外观" : "Appearance")
                         
                         // Status indicator
                         if isScanning {
@@ -126,10 +146,7 @@ struct ContentView: View {
                             selectedItem: $selectedItem
                         )
                     case .logs:
-                        ActionLogView(
-                            logs: actionLogs,
-                            onRefresh: refreshLogs
-                        )
+                        ActionLogView()
                     case .settings:
                         SettingsView()
                     }
@@ -165,6 +182,7 @@ struct ContentView: View {
                 }
             }
         }
+        .preferredColorScheme(appearance.resolvedColorScheme)
         .onAppear {
             refreshAllData()
             setupRefreshTimer()
@@ -208,7 +226,6 @@ struct ContentView: View {
     private func refreshAllData(showIndicator: Bool = true) {
         refreshPorts(showIndicator: showIndicator)
         refreshTrash()
-        refreshLogs()
     }
 
     private func refreshForTab(_ tab: NavigationTab, showIndicator: Bool) {
@@ -218,10 +235,10 @@ struct ContentView: View {
             refreshTrash()
         case .ports:
             refreshPorts(showIndicator: showIndicator)
-        case .logs:
-            refreshLogs()
+                    case .logs:
+                        refreshPorts(showIndicator: showIndicator)
         case .settings:
-            break
+            refreshPorts(showIndicator: showIndicator)
         }
     }
 
@@ -237,7 +254,7 @@ struct ContentView: View {
             }
 
             self.appState.activePortCount = scannedItems.count
-            self.appState.exposedCount = scannedItems.filter { !$0.isLocalOnly && !$0.isSystemProcess }.count
+            self.appState.exposedCount = scannedItems.filter { !$0.isLocalOnly && !$0.isProtected }.count
             self.appState.lastScanDate = Date()
 
             if let current = selectedItem, !scannedItems.contains(where: { $0.id == current.id }) {
@@ -256,14 +273,6 @@ struct ContentView: View {
         TrashService.shared.scanTrashInfo { info in
             if self.trashInfo.sizeBytes != info.sizeBytes || self.trashInfo.fileCount != info.fileCount {
                 self.trashInfo = info
-            }
-        }
-    }
-    
-    private func refreshLogs() {
-        ActionLogService.shared.loadLogs { logs in
-            if self.actionLogs != logs {
-                self.actionLogs = logs
             }
         }
     }
@@ -301,7 +310,7 @@ struct ContentView: View {
     private func executeStop(item: PortServiceItem, force: Bool) {
         if force {
             // Force Kill directly
-            PortService.shared.stopService(pid: item.pid, force: true) { success in
+            PortService.shared.stopService(item: item, force: true) { success in
                 ActionLogService.shared.logAction(
                     type: "SIGKILL",
                     target: "PID \(item.pid) (\(item.processName)) on Port(s) \(item.ports.map { String($0) }.joined(separator: ","))",
@@ -332,7 +341,7 @@ struct ContentView: View {
                 }
             }
             
-            PortService.shared.stopService(pid: item.pid, force: false) { exited in
+            PortService.shared.stopService(item: item, force: false) { exited in
                 countdownTimer?.invalidate()
                 countdownTimer = nil
                 isStopping = false
@@ -367,6 +376,28 @@ struct ContentView: View {
             TrashService.shared.scanTrashInfo { info in
                 self.trashInfo = info
             }
+        }
+    }
+
+    // MARK: - Appearance helpers
+
+    private var appearanceIcon: String {
+        switch appearance.mode {
+        case .system:
+            return appearance.systemScheme == .dark ? "circle.lefthalf.filled" : "sun.max"
+        case .light:
+            return "sun.max"
+        case .dark:
+            return "moon.fill"
+        }
+    }
+
+    private func appearanceLabel(for mode: AppearanceMode) -> String {
+        let chinese = loc.currentLanguage == .chinese
+        switch mode {
+        case .system: return chinese ? "跟随系统" : "System"
+        case .light:  return chinese ? "浅色" : "Light"
+        case .dark:   return chinese ? "深色" : "Dark"
         }
     }
 }

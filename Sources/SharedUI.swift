@@ -43,7 +43,7 @@ struct ServiceStatusBadge: View {
     @ObservedObject private var loc = Localization.shared
 
     var body: some View {
-        if item.isSystemProcess || item.isAppleSigned {
+        if item.isProtected {
             BadgeView(text: loc.t("badge_system"), color: .secondary, icon: "checkmark.seal.fill")
         } else if item.isLocalOnly {
             BadgeView(text: loc.t("badge_local"), color: Theme.safeColor, icon: "lock.fill")

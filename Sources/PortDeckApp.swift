@@ -10,7 +10,6 @@ struct PortDeckApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(appState)
-                .preferredColorScheme(.dark)
                 .frame(minWidth: 960, minHeight: 620)
         }
         .windowStyle(.hiddenTitleBar)

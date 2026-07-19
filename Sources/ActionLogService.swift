@@ -31,7 +31,23 @@ struct ActionLogItem: Identifiable, Codable, Equatable {
 final class ActionLogService: @unchecked Sendable {
     static let shared = ActionLogService()
 
+    private let customLogsDirectory: URL?
+    private let queue = DispatchQueue(label: "com.portdeck.action-log", qos: .utility)
+
+    init(logsDirectory: URL? = nil) {
+        self.customLogsDirectory = logsDirectory
+    }
+
     private var logsDirectory: URL {
+        if let customLogsDirectory {
+            try? FileManager.default.createDirectory(
+                at: customLogsDirectory,
+                withIntermediateDirectories: true,
+                attributes: nil
+            )
+            return customLogsDirectory
+        }
+
         let fm = FileManager.default
         let libraryLogs = fm.urls(for: .libraryDirectory, in: .userDomainMask).first!
             .appendingPathComponent("Logs")
@@ -54,18 +70,37 @@ final class ActionLogService: @unchecked Sendable {
             status: status
         )
 
-        DispatchQueue.global(qos: .utility).async {
+        queue.async {
             var existingLogs = self.loadLogsSync()
             existingLogs.insert(entry, at: 0) // Prepend newest
 
-            // Limit to last 100 entries to prevent files growing too large
-            if existingLogs.count > 100 {
-                existingLogs = Array(existingLogs.prefix(100))
+            // Limit to last 1000 entries to prevent files growing too large
+            if existingLogs.count > 1000 {
+                existingLogs = Array(existingLogs.prefix(1000))
             }
 
             if let data = try? JSONEncoder().encode(existingLogs) {
-                try? data.write(to: self.logFileURL)
+                try? data.write(to: self.logFileURL, options: .atomic)
             }
+        }
+    }
+
+    /// Remove a single log entry by id.
+    func deleteLog(id: String) {
+        queue.async {
+            var logs = self.loadLogsSync()
+            logs.removeAll { $0.id == id }
+            if let data = try? JSONEncoder().encode(logs) {
+                try? data.write(to: self.logFileURL, options: .atomic)
+            }
+        }
+    }
+
+    /// Delete every log entry.
+    func clearLogs(completion: @escaping () -> Void) {
+        queue.async {
+            try? FileManager.default.removeItem(at: self.logFileURL)
+            DispatchQueue.main.async { completion() }
         }
     }
 
@@ -79,7 +114,7 @@ final class ActionLogService: @unchecked Sendable {
 
     // Load logs asynchronously
     func loadLogs(completion: @escaping ([ActionLogItem]) -> Void) {
-        DispatchQueue.global(qos: .utility).async {
+        queue.async {
             let logs = self.loadLogsSync()
             DispatchQueue.main.async {
                 completion(logs)
